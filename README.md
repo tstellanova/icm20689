@@ -1,4 +1,4 @@
-# ist8310
+# icm20689 
 
 A rust embedded-hal driver for the 
 TDK InvenSense ICM-20689
