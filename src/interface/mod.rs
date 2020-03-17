@@ -28,7 +28,8 @@ pub trait SensorInterface {
     //     recv_buf: &mut [u8],
     // ) -> Result<usize, Self::SensorError>;
 
-    //fn register_read(reg: u8) -> Result<(), Self::SensorError>;
+    /// Read a single register
+    fn register_read(&mut self, reg: u8) -> Result<u8, Self::SensorError>;
     //fn write_register_block(reg: u8, block: &[u8]) -> Result<(), Self::SensorError>;
 
 }

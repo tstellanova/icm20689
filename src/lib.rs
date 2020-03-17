@@ -6,41 +6,45 @@ LICENSE: BSD3 (see LICENSE file)
 #![no_std]
 
 use embedded_hal as hal;
-use hal::blocking::delay::DelayMs;
 use embedded_hal::digital::v2::InputPin;
 use embedded_hal::digital::v2::OutputPin;
 
 
 pub mod interface;
-use interface::{I2cInterface, SpiInterface};
+use interface::{SensorInterface, I2cInterface, SpiInterface};
 
 /// Errors in this crate
 #[derive(Debug)]
-pub enum Error<CommE> {
+pub enum Error<CommE, PinE> {
     /// Sensor communication error
     Comm(CommE),
+    /// Pin setting error
+    Pin(PinE),
+
 }
+
 
 
 pub struct Builder { }
 
 impl Builder {
-    pub fn new_i2c<I2C, CommE>(&self, i2c: I2C) -> ICM20689<I2cInterface<I2C>>
+    /// Create a new driver using I2C interface
+    pub fn new_i2c<I2C, CommE>(&self, _i2c: I2C) -> ICM20689<I2cInterface<I2C>>
         where
-            I2C: embedded_hal::blocking::i2c::Write<Error = CommE>
-            + embedded_hal::blocking::i2c::Read<Error = CommE>
-            + embedded_hal::blocking::i2c::WriteRead<Error = CommE>
+            I2C: hal::blocking::i2c::Write<Error = CommE>
+            + hal::blocking::i2c::Read<Error = CommE>
+            + hal::blocking::i2c::WriteRead<Error = CommE>
     {
         //TODO support i2c interface
         unimplemented!()
     }
 
-    /// Finish the builder and use SPI to communicate with the display
+    /// Create a new driver using SPI interface
     pub fn new_spi<SPI, CSN, DRDY, CommE, PinE>(
         spi: SPI,
         csn: CSN,
         drdy: DRDY,
-    ) -> ICM20689<SpiInterface<SPI, CSN, DRDY>>
+    ) ->    ICM20689<SpiInterface<SPI, CSN, DRDY>>
         where
             SPI: hal::blocking::spi::Transfer<u8, Error = CommE>
             + hal::blocking::spi::Write<u8, Error = CommE>,
@@ -56,11 +60,24 @@ pub struct ICM20689<SI> {
     pub(crate) sensor_interface: SI,
 }
 
-impl<SI> ICM20689<SI> {
-    pub fn new_with_interface(sensor_interface: SI) -> Self {
+impl<SI> ICM20689<SI>
+    where SI: SensorInterface
+{
+    const REG_WHO_AM_I: u8  = 0x75;
+    const EXPECTED_WHO_AM_I: u8 = 0x98;
+
+    pub(crate) fn new_with_interface(sensor_interface: SI) -> Self {
         Self {
             sensor_interface,
         }
+    }
+
+    /// Read the sensor identifier and
+    /// return true if it matches the expected value
+    pub fn probe(&mut self) -> bool {
+        let rc = self.sensor_interface.register_read(Self::REG_WHO_AM_I);
+        let val = rc.unwrap_or(0);
+        (val == Self::EXPECTED_WHO_AM_I)
     }
 }
 
