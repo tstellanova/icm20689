@@ -1,8 +1,8 @@
 use embedded_hal as hal;
 use hal::blocking::delay::DelayMs;
 
-use super::SensorInterface;
 use crate::Error;
+use super::SensorInterface;
 
 pub struct I2cInterface<I2C> {
     /// i2c port
@@ -31,15 +31,20 @@ where
         + hal::blocking::i2c::Write<Error = CommE>
         + hal::blocking::i2c::WriteRead<Error = CommE>,
 {
-    type SensorError = Error<CommE, ()>;
+    type InterfaceError = Error<CommE, ()>;
 
-    fn setup(&mut self, _delay_source: &mut impl DelayMs<u8>) -> Result<(), Self::SensorError> {
+    fn setup(&mut self, _delay_source: &mut impl DelayMs<u8>) -> Result<(), Self::InterfaceError> {
         //TODO
         Ok(())
     }
 
-    fn register_read(&mut self, _reg: u8) -> Result<u8, Self::SensorError> {
+    fn register_read(&mut self, _reg: u8) -> Result<u8, Self::InterfaceError> {
         //TODO
         Ok(0)
     }
+    fn register_write(&mut self, _reg: u8, _val: u8) -> Result<(), Self::InterfaceError> {
+        //TODO
+        Ok(())
+    }
+
 }

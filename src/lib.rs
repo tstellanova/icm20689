@@ -29,6 +29,7 @@ impl Builder {
         I2C: hal::blocking::i2c::Write<Error = CommE>
             + hal::blocking::i2c::Read<Error = CommE>
             + hal::blocking::i2c::WriteRead<Error = CommE>,
+        CommE: core::fmt::Debug
     {
         let iface = interface::I2cInterface::new(i2c, address);
         ICM20689::new_with_interface(iface)
@@ -43,7 +44,9 @@ impl Builder {
         SPI: hal::blocking::spi::Transfer<u8, Error = CommE>
             + hal::blocking::spi::Write<u8, Error = CommE>,
         CSN: OutputPin<Error = PinE>,
-        // DRDY: InputPin<Error = PinE>,
+        CommE: core::fmt::Debug,
+        PinE: core::fmt::Debug,
+    // DRDY: InputPin<Error = PinE>,
     {
         let iface = interface::SpiInterface::new(spi, csn);
         ICM20689::new_with_interface(iface)
@@ -57,6 +60,7 @@ pub struct ICM20689<SI> {
 impl<SI> ICM20689<SI>
 where
     SI: SensorInterface,
+    SI::InterfaceError: core::fmt::Debug,
 {
     const REG_WHO_AM_I: u8 = 0x75;
     const EXPECTED_WHO_AM_I: u8 = 0x98;
@@ -67,10 +71,11 @@ where
 
     /// Read the sensor identifier and
     /// return true if it matches the expected value
-    pub fn probe(&mut self) -> bool {
-        let rc = self.sensor_interface.register_read(Self::REG_WHO_AM_I);
-        let val = rc.unwrap_or(0);
-        val == Self::EXPECTED_WHO_AM_I
+    pub fn probe(&mut self) -> Result<(bool), SI::InterfaceError > {
+        //let rc =
+            let val = self.sensor_interface.register_read(Self::REG_WHO_AM_I)?;
+       // let val = rc.unwrap_or(0);
+        Ok(val == Self::EXPECTED_WHO_AM_I)
     }
 }
 
