@@ -6,12 +6,10 @@ LICENSE: BSD3 (see LICENSE file)
 #![no_std]
 
 use embedded_hal as hal;
-use embedded_hal::digital::v2::InputPin;
-use embedded_hal::digital::v2::OutputPin;
+use hal::digital::v2::{InputPin, OutputPin};
 
-
-pub mod interface;
-use interface::{SensorInterface, I2cInterface, SpiInterface};
+mod interface;
+pub use interface::{I2cInterface, SensorInterface, SpiInterface};
 
 /// Errors in this crate
 #[derive(Debug)]
@@ -20,39 +18,35 @@ pub enum Error<CommE, PinE> {
     Comm(CommE),
     /// Pin setting error
     Pin(PinE),
-
 }
 
-
-
-pub struct Builder { }
+pub struct Builder {}
 
 impl Builder {
     /// Create a new driver using I2C interface
-    pub fn new_i2c<I2C, CommE>(&self, _i2c: I2C) -> ICM20689<I2cInterface<I2C>>
-        where
-            I2C: hal::blocking::i2c::Write<Error = CommE>
+    pub fn new_i2c<I2C, CommE>(&self, i2c: I2C, address: u8) -> ICM20689<I2cInterface<I2C>>
+    where
+        I2C: hal::blocking::i2c::Write<Error = CommE>
             + hal::blocking::i2c::Read<Error = CommE>
-            + hal::blocking::i2c::WriteRead<Error = CommE>
+            + hal::blocking::i2c::WriteRead<Error = CommE>,
     {
-        //TODO support i2c interface
-        unimplemented!()
+        let iface = interface::I2cInterface::new(i2c, address);
+        ICM20689::new_with_interface(iface)
     }
 
     /// Create a new driver using SPI interface
-    pub fn new_spi<SPI, CSN, DRDY, CommE, PinE>(
+    pub fn new_spi<SPI, CSN, CommE, PinE>(
         spi: SPI,
         csn: CSN,
-        drdy: DRDY,
-    ) ->    ICM20689<SpiInterface<SPI, CSN, DRDY>>
-        where
-            SPI: hal::blocking::spi::Transfer<u8, Error = CommE>
+    ) -> ICM20689<SpiInterface<SPI, CSN>>
+    where
+        SPI: hal::blocking::spi::Transfer<u8, Error = CommE>
             + hal::blocking::spi::Write<u8, Error = CommE>,
-            CSN: OutputPin<Error = PinE>,
-            DRDY: InputPin<Error = PinE>
+        CSN: OutputPin<Error = PinE>,
+        // DRDY: InputPin<Error = PinE>,
     {
-        let spi_iface =  interface::SpiInterface::new(spi, csn, drdy);
-        ICM20689::new_with_interface(spi_iface)
+        let iface = interface::SpiInterface::new(spi, csn);
+        ICM20689::new_with_interface(iface)
     }
 }
 
@@ -61,15 +55,14 @@ pub struct ICM20689<SI> {
 }
 
 impl<SI> ICM20689<SI>
-    where SI: SensorInterface
+where
+    SI: SensorInterface,
 {
-    const REG_WHO_AM_I: u8  = 0x75;
+    const REG_WHO_AM_I: u8 = 0x75;
     const EXPECTED_WHO_AM_I: u8 = 0x98;
 
     pub(crate) fn new_with_interface(sensor_interface: SI) -> Self {
-        Self {
-            sensor_interface,
-        }
+        Self { sensor_interface }
     }
 
     /// Read the sensor identifier and
@@ -77,11 +70,9 @@ impl<SI> ICM20689<SI>
     pub fn probe(&mut self) -> bool {
         let rc = self.sensor_interface.register_read(Self::REG_WHO_AM_I);
         let val = rc.unwrap_or(0);
-        (val == Self::EXPECTED_WHO_AM_I)
+        val == Self::EXPECTED_WHO_AM_I
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

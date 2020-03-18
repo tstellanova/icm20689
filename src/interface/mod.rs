@@ -3,8 +3,8 @@ pub mod spi;
 
 use embedded_hal::blocking::delay::DelayMs;
 
-pub use self::spi::SpiInterface;
 pub use self::i2c::I2cInterface;
+pub use self::spi::SpiInterface;
 
 /// A method of communicating with the sensor
 pub trait SensorInterface {
@@ -31,6 +31,4 @@ pub trait SensorInterface {
     /// Read a single register
     fn register_read(&mut self, reg: u8) -> Result<u8, Self::SensorError>;
     //fn write_register_block(reg: u8, block: &[u8]) -> Result<(), Self::SensorError>;
-
 }
-
