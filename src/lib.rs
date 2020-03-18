@@ -6,7 +6,7 @@ LICENSE: BSD3 (see LICENSE file)
 #![no_std]
 
 use embedded_hal as hal;
-use hal::digital::v2::{InputPin, OutputPin};
+use hal::digital::v2::OutputPin;
 
 mod interface;
 pub use interface::{I2cInterface, SensorInterface, SpiInterface};
@@ -29,24 +29,20 @@ impl Builder {
         I2C: hal::blocking::i2c::Write<Error = CommE>
             + hal::blocking::i2c::Read<Error = CommE>
             + hal::blocking::i2c::WriteRead<Error = CommE>,
-        CommE: core::fmt::Debug
+        CommE: core::fmt::Debug,
     {
         let iface = interface::I2cInterface::new(i2c, address);
         ICM20689::new_with_interface(iface)
     }
 
     /// Create a new driver using SPI interface
-    pub fn new_spi<SPI, CSN, CommE, PinE>(
-        spi: SPI,
-        csn: CSN,
-    ) -> ICM20689<SpiInterface<SPI, CSN>>
+    pub fn new_spi<SPI, CSN, CommE, PinE>(spi: SPI, csn: CSN) -> ICM20689<SpiInterface<SPI, CSN>>
     where
         SPI: hal::blocking::spi::Transfer<u8, Error = CommE>
             + hal::blocking::spi::Write<u8, Error = CommE>,
         CSN: OutputPin<Error = PinE>,
         CommE: core::fmt::Debug,
         PinE: core::fmt::Debug,
-    // DRDY: InputPin<Error = PinE>,
     {
         let iface = interface::SpiInterface::new(spi, csn);
         ICM20689::new_with_interface(iface)
@@ -71,7 +67,7 @@ where
 
     /// Read the sensor identifier and
     /// return true if it matches the expected value
-    pub fn probe(&mut self) -> Result<(bool), SI::InterfaceError > {
+    pub fn probe(&mut self) -> Result<bool, SI::InterfaceError> {
         //dummy read may wake up the sensor
         self.sensor_interface.register_read(Self::REG_WHO_AM_I)?;
         let val = self.sensor_interface.register_read(Self::REG_WHO_AM_I)?;

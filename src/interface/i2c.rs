@@ -1,8 +1,8 @@
 use embedded_hal as hal;
 use hal::blocking::delay::DelayMs;
 
-use crate::Error;
 use super::SensorInterface;
+use crate::Error;
 
 pub struct I2cInterface<I2C> {
     /// i2c port
@@ -46,5 +46,4 @@ where
         //TODO
         Ok(())
     }
-
 }
