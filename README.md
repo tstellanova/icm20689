@@ -1,7 +1,8 @@
 # icm20689 
 
 A rust embedded-hal driver for the 
-TDK InvenSense ICM-20689
+TDK InvenSense 
+[ICM-20689](https://invensense.tdk.com/download-pdf/icm-20689-datasheet/)
 6DOF accelerometer and gyroscope.
 
 The ICM-20689 is a 6-axis motion tracking device 

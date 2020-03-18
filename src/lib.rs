@@ -72,9 +72,10 @@ where
     /// Read the sensor identifier and
     /// return true if it matches the expected value
     pub fn probe(&mut self) -> Result<(bool), SI::InterfaceError > {
-        //let rc =
-            let val = self.sensor_interface.register_read(Self::REG_WHO_AM_I)?;
-       // let val = rc.unwrap_or(0);
+        //dummy read may wake up the sensor
+        self.sensor_interface.register_read(Self::REG_WHO_AM_I)?;
+        let val = self.sensor_interface.register_read(Self::REG_WHO_AM_I)?;
+
         Ok(val == Self::EXPECTED_WHO_AM_I)
     }
 }
