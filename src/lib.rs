@@ -63,8 +63,8 @@ where
 {
     const REG_PWR_MGMT_1: u8 = 0x6B;
     const PWR_DEVICE_RESET: u8 = 1 << 7; // 0x80 : 0b10000000;
-    const PWR_DEVICE_SLEEP: u8 = 1 << 6; // 0x40
-    const REG_PWR_MGMT_2: u8 = 0x6C;
+    //const PWR_DEVICE_SLEEP: u8 = 1 << 6; // 0x40
+    //const REG_PWR_MGMT_2: u8 = 0x6C;
 
     const REG_WHO_AM_I: u8 = 0x75;
     const EXPECTED_WHO_AM_I: u8 = 0x98;
@@ -104,29 +104,32 @@ where
     ) -> Result<(), SI::InterfaceError> {
         self.sensor_interface
             .register_write(Self::REG_PWR_MGMT_1, Self::PWR_DEVICE_RESET)?;
-        //delay_source.delay_ms(100);
-
-        // let probe_success = self.probe(delay_source)?;
-        // if probe_success {
-        //     Ok(())
-        // }
-        // else {
-        //     Err(Error::Unresponsive)
-        // }
-
-        // there should only be a lag of about 100 microseconds before device resets
+        //reset can take up to 100 ms?
+        delay_source.delay_ms(100);
         let mut reset_success = false;
-        for _ in 0..10 {
-            let chip_id = self.sensor_interface.register_read(Self::REG_WHO_AM_I)?;
-            if chip_id == Self::EXPECTED_WHO_AM_I {
-                let pwr1 = self.sensor_interface.register_read(Self::REG_PWR_MGMT_1)?;
-                if pwr1 == Self::PWR_DEVICE_SLEEP {
+        for _ in 0..100 {
+            //The reset bit automatically clears to 0 once the reset is done.
+            if let Ok(reg_val) = self.sensor_interface.register_read(Self::REG_PWR_MGMT_1) {
+                if reg_val & Self::PWR_DEVICE_RESET == 0 {
                     reset_success = true;
                     break;
                 }
             }
-            //delay_source.delay_ms(10);
+            delay_source.delay_ms(10);
         }
+
+        // TODO no need to verify WHO_AM_I in reset?
+        // for _ in 0..10 {
+        //     let chip_id = self.sensor_interface.register_read(Self::REG_WHO_AM_I)?;
+        //     if chip_id == Self::EXPECTED_WHO_AM_I {
+        //         let pwr1 = self.sensor_interface.register_read(Self::REG_PWR_MGMT_1)?;
+        //         if pwr1 == Self::PWR_DEVICE_SLEEP {
+        //             reset_success = true;
+        //             break;
+        //         }
+        //     }
+        //     delay_source.delay_ms(1);
+        // }
 
         if reset_success {
             Ok(())
@@ -137,10 +140,16 @@ where
 
     /// give the sensor interface a chance to set up
     pub fn setup(&mut self, delay_source: &mut impl DelayMs<u8>) -> Result<(), SI::InterfaceError> {
-        let probe_ok = self.probe(delay_source)?;
+        let mut probe_ok = self.probe(delay_source)?;
         if !probe_ok {
             self.soft_reset(delay_source)?;
+            probe_ok = self.probe(delay_source)?;
         }
+
+        if probe_ok {
+
+        }
+
         Ok(())
     }
 

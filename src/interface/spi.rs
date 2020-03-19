@@ -26,6 +26,8 @@ where
 
     pub fn new(spi: SPI, csn: CSN) -> Self {
         let mut inst = Self { spi: spi, csn: csn };
+        //ensure that the device is initially deselected
+        let _ = inst.csn.set_low();
         let _ = inst.csn.set_high();
         inst
     }
