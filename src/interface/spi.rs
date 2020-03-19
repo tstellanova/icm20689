@@ -22,6 +22,9 @@ where
         + hal::blocking::spi::Transfer<u8, Error = CommE>,
     CSN: OutputPin<Error = PinE>,
 {
+    /// Combined with register address for reading single byte register
+    const DIR_READ: u8 = 0x80;
+
     pub fn new(spi: SPI, csn: CSN) -> Self {
         Self { spi: spi, csn: csn }
     }
@@ -52,11 +55,20 @@ where
         Ok(())
     }
 
-    fn register_read(&mut self, reg: u8) -> Result<u8, Self::InterfaceError> {
-        /// Combined with register address for reading single byte register
-        const DIR_READ: u8 = 0x80;
+    fn read_vec3_i16(&mut self, reg: u8) -> Result<[i16; 3], Self::InterfaceError> {
+        let mut block: [u8; 7] = [0; 7];
+        block[0] = reg | Self::DIR_READ;
+        self.transfer_block(&mut block)?;
 
-        let mut cmd: [u8; 2] = [reg | DIR_READ, 0];
+        Ok([
+            (block[0] as i16) << 8 | (block[1] as i16),
+            (block[2] as i16) << 8 | (block[3] as i16),
+            (block[4] as i16) << 8 | (block[5] as i16),
+        ])
+    }
+
+    fn register_read(&mut self, reg: u8) -> Result<u8, Self::InterfaceError> {
+        let mut cmd: [u8; 2] = [reg | Self::DIR_READ, 0];
         self.transfer_block(&mut cmd)?;
         Ok(cmd[1])
     }

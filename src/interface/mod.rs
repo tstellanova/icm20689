@@ -18,5 +18,6 @@ pub trait SensorInterface {
     fn register_read(&mut self, reg: u8) -> Result<u8, Self::InterfaceError>;
     fn register_write(&mut self, reg: u8, val: u8) -> Result<(), Self::InterfaceError>;
 
-    //TODO read and write block?
+    /// read a vector of three i16 from the given register address
+    fn read_vec3_i16(&mut self, reg: u8) -> Result<[i16; 3], Self::InterfaceError>;
 }

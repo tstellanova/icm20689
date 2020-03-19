@@ -61,6 +61,12 @@ where
     const REG_WHO_AM_I: u8 = 0x75;
     const EXPECTED_WHO_AM_I: u8 = 0x98;
 
+    const REG_ACCEL_XOUT_H: u8 = 0x3B;
+    const REG_ACCEL_START: u8 = Self::REG_ACCEL_XOUT_H;
+
+    const REG_GYRO_XOUT_H: u8 = 0x43;
+    const REG_GYRO_START: u8 = Self::REG_GYRO_XOUT_H;
+
     pub(crate) fn new_with_interface(sensor_interface: SI) -> Self {
         Self { sensor_interface }
     }
@@ -73,6 +79,16 @@ where
         let val = self.sensor_interface.register_read(Self::REG_WHO_AM_I)?;
 
         Ok(val == Self::EXPECTED_WHO_AM_I)
+    }
+
+    pub fn get_accel(&mut self) -> Result<[i16; 3], SI::InterfaceError> {
+        let sample = self.sensor_interface.read_vec3_i16(Self::REG_ACCEL_START)?;
+        Ok(sample)
+    }
+
+    pub fn get_gyro(&mut self) -> Result<[i16; 3], SI::InterfaceError> {
+        let sample = self.sensor_interface.read_vec3_i16(Self::REG_GYRO_START)?;
+        Ok(sample)
     }
 }
 
