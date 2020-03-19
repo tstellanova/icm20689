@@ -1,5 +1,4 @@
 use embedded_hal as hal;
-use hal::blocking::delay::DelayMs;
 use hal::digital::v2::OutputPin;
 
 use super::SensorInterface;
@@ -26,7 +25,9 @@ where
     const DIR_READ: u8 = 0x80;
 
     pub fn new(spi: SPI, csn: CSN) -> Self {
-        Self { spi: spi, csn: csn }
+        let mut inst = Self { spi: spi, csn: csn };
+        let _ = inst.csn.set_high();
+        inst
     }
 
     fn transfer_block(&mut self, block: &mut [u8]) -> Result<(), Error<CommE, PinE>> {
@@ -44,16 +45,8 @@ where
     SPI: hal::blocking::spi::Write<u8, Error = CommE>
         + hal::blocking::spi::Transfer<u8, Error = CommE>,
     CSN: OutputPin<Error = PinE>,
-    //DRDY: InputPin<Error = PinE>,
 {
     type InterfaceError = Error<CommE, PinE>;
-
-    fn setup(&mut self, _delay_source: &mut impl DelayMs<u8>) -> Result<(), Self::InterfaceError> {
-        // Deselect sensor
-        self.csn.set_high().map_err(Error::Pin)?;
-
-        Ok(())
-    }
 
     fn read_vec3_i16(&mut self, reg: u8) -> Result<[i16; 3], Self::InterfaceError> {
         let mut block: [u8; 7] = [0; 7];

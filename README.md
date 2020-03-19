@@ -11,7 +11,7 @@ and a motion processor.
 
 ## Status
 
-- [ ] Basic SPI support
+- [x] Basic SPI support
 - [ ] Support for probe (check product identifier)
 - [ ] Read of gyro data
 - [ ] Read of accel data

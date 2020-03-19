@@ -1,5 +1,4 @@
 use embedded_hal as hal;
-use hal::blocking::delay::DelayMs;
 
 use super::SensorInterface;
 use crate::Error;
@@ -32,10 +31,6 @@ where
         + hal::blocking::i2c::WriteRead<Error = CommE>,
 {
     type InterfaceError = Error<CommE, ()>;
-
-    fn setup(&mut self, _delay_source: &mut impl DelayMs<u8>) -> Result<(), Self::InterfaceError> {
-        unimplemented!()
-    }
 
     fn register_read(&mut self, _reg: u8) -> Result<u8, Self::InterfaceError> {
         unimplemented!()

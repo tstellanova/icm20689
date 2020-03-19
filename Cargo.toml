@@ -27,6 +27,7 @@ readme = "README.md"
 
 [dependencies]
 embedded-hal = { version = "0.2.3", features = ["unproven"] }
+cortex-m = "0.6.2"
 
 [dev-dependencies]
 embedded-hal-mock = "0.7.1"
