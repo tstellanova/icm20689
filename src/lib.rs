@@ -54,7 +54,7 @@ impl Builder {
 }
 
 pub struct ICM20689<SI> {
-    pub(crate) sensor_interface: SI,
+    pub(crate) si: SI,
 }
 
 impl<SI, CommE, PinE> ICM20689<SI>
@@ -77,7 +77,7 @@ where
 
     const REG_CONFIG: u8 = 0x1A;
     const REG_FIFO_EN: u8 = 0x23;
-
+    const REG_INT_ENABLE: u8 = 0x38;
     const REG_SMPLRT_DIV:u8 = 0x19;
 
     const REG_GYRO_CONFIG: u8 = 0x1B;
@@ -85,7 +85,7 @@ where
 
 
     pub(crate) fn new_with_interface(sensor_interface: SI) -> Self {
-        Self { sensor_interface }
+        Self { si: sensor_interface }
     }
 
     /// Read the sensor identifiers and
@@ -96,7 +96,7 @@ where
     ) -> Result<bool, SI::InterfaceError> {
         let mut chip_id = 0;
         for _ in 0..5 {
-            chip_id = self.sensor_interface.register_read(Self::REG_WHO_AM_I)?;
+            chip_id = self.si.register_read(Self::REG_WHO_AM_I)?;
             if chip_id == Self::EXPECTED_WHO_AM_I {
                 break;
             }
@@ -111,14 +111,13 @@ where
         &mut self,
         delay_source: &mut impl DelayMs<u8>,
     ) -> Result<(), SI::InterfaceError> {
-        self.sensor_interface
-            .register_write(Self::REG_PWR_MGMT_1, Self::PWR_DEVICE_RESET)?;
+        self.si.register_write(Self::REG_PWR_MGMT_1, Self::PWR_DEVICE_RESET)?;
         //reset can take up to 100 ms?
         delay_source.delay_ms(100);
         let mut reset_success = false;
         for _ in 0..100 {
             //The reset bit automatically clears to 0 once the reset is done.
-            if let Ok(reg_val) = self.sensor_interface.register_read(Self::REG_PWR_MGMT_1) {
+            if let Ok(reg_val) = self.si.register_read(Self::REG_PWR_MGMT_1) {
                 if reg_val & Self::PWR_DEVICE_RESET == 0 {
                     reset_success = true;
                     break;
@@ -129,9 +128,9 @@ where
 
         // TODO no need to verify WHO_AM_I in reset?
         // for _ in 0..10 {
-        //     let chip_id = self.sensor_interface.register_read(Self::REG_WHO_AM_I)?;
+        //     let chip_id = self.si.register_read(Self::REG_WHO_AM_I)?;
         //     if chip_id == Self::EXPECTED_WHO_AM_I {
-        //         let pwr1 = self.sensor_interface.register_read(Self::REG_PWR_MGMT_1)?;
+        //         let pwr1 = self.si.register_read(Self::REG_PWR_MGMT_1)?;
         //         if pwr1 == Self::PWR_DEVICE_SLEEP {
         //             reset_success = true;
         //             break;
@@ -162,29 +161,36 @@ where
 
         if probe_ok {
             // enable the FIFO for gyro and accel only
-            self.sensor_interface.register_write(Self::REG_FIFO_EN, 0x7C)?;
+            //self.si.register_write(Self::REG_FIFO_EN, 0x7C)?;
+
+            //disable FIFO
+            self.si.register_write(Self::REG_FIFO_EN, 0x00)?;
+            // disable interrupt pin
+            self.si.register_write(Self::REG_INT_ENABLE, 0x00)?;
+
+
             //Configure the Digital Low Pass Filter (DLPF)
-            self.sensor_interface.register_write(Self::REG_CONFIG, DLPF_CFG_1)?;
+            self.si.register_write(Self::REG_CONFIG, DLPF_CFG_1)?;
             //set the sample frequency
-            self.sensor_interface.register_write(Self::REG_SMPLRT_DIV, 0x01)?;
+            self.si.register_write(Self::REG_SMPLRT_DIV, 0x01)?;
 
             //TODO break out sent range / set scale into separate methods
             // configure the acceleration range/scale
-            self.sensor_interface.register_write(Self::REG_ACCEL_CONFIG, ACCEL_FS_SEL_8G)?;
+            self.si.register_write(Self::REG_ACCEL_CONFIG, ACCEL_FS_SEL_8G)?;
             //configure the gyro range / scale
-            self.sensor_interface.register_write(Self::REG_GYRO_CONFIG, GYRO_FS_SEL_2000_DPS)?;
+            self.si.register_write(Self::REG_GYRO_CONFIG, GYRO_FS_SEL_2000_DPS)?;
         }
 
         Ok(())
     }
 
     pub fn get_accel(&mut self) -> Result<[i16; 3], SI::InterfaceError> {
-        let sample = self.sensor_interface.read_vec3_i16(Self::REG_ACCEL_START)?;
+        let sample = self.si.read_vec3_i16(Self::REG_ACCEL_START)?;
         Ok(sample)
     }
 
     pub fn get_gyro(&mut self) -> Result<[i16; 3], SI::InterfaceError> {
-        let sample = self.sensor_interface.read_vec3_i16(Self::REG_GYRO_START)?;
+        let sample = self.si.read_vec3_i16(Self::REG_GYRO_START)?;
         Ok(sample)
     }
 }
