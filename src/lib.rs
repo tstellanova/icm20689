@@ -75,6 +75,15 @@ where
     const REG_GYRO_XOUT_H: u8 = 0x43;
     const REG_GYRO_START: u8 = Self::REG_GYRO_XOUT_H;
 
+    const REG_CONFIG: u8 = 0x1A;
+    const REG_FIFO_EN: u8 = 0x23;
+
+    const REG_SMPLRT_DIV:u8 = 0x19;
+
+    const REG_GYRO_CONFIG: u8 = 0x1B;
+    const REG_ACCEL_CONFIG: u8 = 0x1C;
+
+
     pub(crate) fn new_with_interface(sensor_interface: SI) -> Self {
         Self { sensor_interface }
     }
@@ -140,6 +149,11 @@ where
 
     /// give the sensor interface a chance to set up
     pub fn setup(&mut self, delay_source: &mut impl DelayMs<u8>) -> Result<(), SI::InterfaceError> {
+        const DLPF_CFG_1: u8  = 0x01;
+        const ACCEL_FS_SEL_8G: u8 = 0x02;
+        const GYRO_FS_SEL_2000_DPS: u8 = 0b00011000;
+
+
         let mut probe_ok = self.probe(delay_source)?;
         if !probe_ok {
             self.soft_reset(delay_source)?;
@@ -147,7 +161,18 @@ where
         }
 
         if probe_ok {
+            // enable the FIFO for gyro and accel only
+            self.sensor_interface.register_write(Self::REG_FIFO_EN, 0x7C)?;
+            //Configure the Digital Low Pass Filter (DLPF)
+            self.sensor_interface.register_write(Self::REG_CONFIG, DLPF_CFG_1)?;
+            //set the sample frequency
+            self.sensor_interface.register_write(Self::REG_SMPLRT_DIV, 0x01)?;
 
+            //TODO break out sent range / set scale into separate methods
+            // configure the acceleration range/scale
+            self.sensor_interface.register_write(Self::REG_ACCEL_CONFIG, ACCEL_FS_SEL_8G)?;
+            //configure the gyro range / scale
+            self.sensor_interface.register_write(Self::REG_GYRO_CONFIG, GYRO_FS_SEL_2000_DPS)?;
         }
 
         Ok(())
