@@ -16,4 +16,7 @@ pub trait SensorInterface {
 
     /// read a vector of three i16 from the given register address
     fn read_vec3_i16(&mut self, reg: u8) -> Result<[i16; 3], Self::InterfaceError>;
+
+    /// some features are enabled for SPI only
+    fn using_spi(&self) -> bool;
 }

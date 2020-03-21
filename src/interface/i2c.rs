@@ -43,4 +43,8 @@ where
     fn read_vec3_i16(&mut self, _reg: u8) -> Result<[i16; 3], Self::InterfaceError> {
         unimplemented!()
     }
+
+    fn using_spi(&self) -> bool {
+        false
+    }
 }

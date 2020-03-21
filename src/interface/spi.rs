@@ -74,4 +74,8 @@ where
 
         Ok(())
     }
+
+    fn using_spi(&self) -> bool {
+        true
+    }
 }
