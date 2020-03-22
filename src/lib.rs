@@ -20,6 +20,8 @@ pub enum Error<CommE, PinE> {
     /// Pin setting error
     Pin(PinE),
 
+    /// Unrecognized chip ID
+    UnknownChipId,
     /// Sensor not responding
     Unresponsive,
 }
@@ -65,8 +67,8 @@ where
 
     const REG_PWR_MGMT_1: u8 = 0x6B;
     const PWR_DEVICE_RESET: u8 = 1 << 7; // 0x80 : 0b10000000;
-                                         //const PWR_DEVICE_SLEEP: u8 = 1 << 6; // 0x40
-                                         //const REG_PWR_MGMT_2: u8 = 0x6C;
+    //const PWR_DEVICE_SLEEP: u8 = 1 << 6; // 0x40
+    //const REG_PWR_MGMT_2: u8 = 0x6C;
 
     const REG_WHO_AM_I: u8 = 0x75;
     const EXPECTED_WHO_AM_I: u8 = 0x98;
@@ -120,11 +122,15 @@ where
         const I2C_IF_DIS: u8 = 1 << 4;
         //const FIFO_EN: u8 = 1 << 6;
         //const DMP_EN:u8 = 1 << 7;
+        /// Auto-select between internal relaxation oscillator and
+        /// gyroscope MEMS oscillator to use the best available source
+        const CLKSEL_AUTO: u8 = 0x01;
 
         self.si
             .register_write(Self::REG_PWR_MGMT_1, Self::PWR_DEVICE_RESET)?;
         //reset can take up to 100 ms?
-        delay_source.delay_ms(100);
+        delay_source.delay_ms(110);
+
         let mut reset_success = false;
         for _ in 0..10 {
             //The reset bit automatically clears to 0 once the reset is done.
@@ -136,19 +142,33 @@ where
             }
             delay_source.delay_ms(10);
         }
-
-        if reset_success {
-            let flags = if self.si.using_spi() {
-                //disable i2c
-                FIFO_RST | SIG_COND_RST | I2C_IF_DIS
-            } else {
-                FIFO_RST | SIG_COND_RST
-            };
-            self.si.register_write(Self::REG_USER_CTRL, flags)?;
-            Ok(())
-        } else {
-            Err(Error::Unresponsive)
+        if !reset_success {
+            return  Err(Error::Unresponsive)
         }
+
+        if self.si.using_spi() {
+            self.si.register_write(Self::REG_USER_CTRL, I2C_IF_DIS)?;
+        }
+        // let flags = if self.si.using_spi() {
+        //     //disable i2c just after reset
+        //     FIFO_RST | SIG_COND_RST | I2C_IF_DIS
+        // } else {
+        //     FIFO_RST | SIG_COND_RST
+        // };
+        // self.si.register_write(Self::REG_USER_CTRL, flags)?;
+
+        //setup the automatic clock selection
+        self.si.register_write(Self::REG_PWR_MGMT_1, CLKSEL_AUTO)?;
+        delay_source.delay_ms(10);
+
+        // verify that clock selection is valid
+        let pwr_mgmt = self.si.register_read(Self::REG_PWR_MGMT_1)?;
+        if 0 == (pwr_mgmt & CLKSEL_AUTO) {
+            return  Err(Error::Unresponsive)
+        }
+
+        Ok(())
+
     }
 
     /// give the sensor interface a chance to set up
@@ -159,24 +179,23 @@ where
 
         self.soft_reset(delay_source)?;
         let probe_ok = self.probe(delay_source)?;
-
         if !probe_ok {
-            return Err(Error::Unresponsive);
+            return Err(Error::UnknownChipId);
         }
 
         // enable the FIFO for gyro and accel only
         //self.si.register_write(Self::REG_FIFO_EN, 0x7C)?;
 
-        //disable FIFO
-        self.si.register_write(Self::REG_FIFO_EN, 0x00)?;
-
-        // disable interrupt pin
-        self.si.register_write(Self::REG_INT_ENABLE, 0x00)?;
-
-        //Configure the Digital Low Pass Filter (DLPF)
-        self.si.register_write(Self::REG_CONFIG, DLPF_CFG_1)?;
-        //set the sample frequency
-        self.si.register_write(Self::REG_SMPLRT_DIV, 0x01)?;
+        // //disable FIFO
+        // self.si.register_write(Self::REG_FIFO_EN, 0x00)?;
+        //
+        // // disable interrupt pin
+        // self.si.register_write(Self::REG_INT_ENABLE, 0x00)?;
+        //
+        // //Configure the Digital Low Pass Filter (DLPF)
+        // self.si.register_write(Self::REG_CONFIG, DLPF_CFG_1)?;
+        // //set the sample frequency
+        // self.si.register_write(Self::REG_SMPLRT_DIV, 0x01)?;
 
         //TODO should we enable DMP?
 
@@ -187,6 +206,7 @@ where
         //configure the gyro range / scale
         self.si
             .register_write(Self::REG_GYRO_CONFIG, GYRO_FS_SEL_2000_DPS)?;
+
 
         Ok(())
     }

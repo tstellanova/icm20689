@@ -27,7 +27,6 @@ where
     pub fn new(spi: SPI, csn: CSN) -> Self {
         let mut inst = Self { spi: spi, csn: csn };
         //ensure that the device is initially deselected
-        let _ = inst.csn.set_low();
         let _ = inst.csn.set_high();
         inst
     }
@@ -35,11 +34,12 @@ where
     fn transfer_block(&mut self, block: &mut [u8]) -> Result<(), Error<CommE, PinE>> {
         self.csn.set_low().map_err(Error::Pin)?;
         let rc = self.spi.transfer(block);
-        self.csn.set_high().map_err(Error::Pin)?;
-        let _ = rc.map_err(Error::Comm)?;
+        let _ = self.csn.set_high();
+        rc.map_err(Error::Comm)?;
 
         Ok(())
     }
+
 }
 
 impl<SPI, CSN, CommE, PinE> SensorInterface for SpiInterface<SPI, CSN>
@@ -51,27 +51,35 @@ where
     type InterfaceError = Error<CommE, PinE>;
 
     fn read_vec3_i16(&mut self, reg: u8) -> Result<[i16; 3], Self::InterfaceError> {
+        let mut resp: [u8; 6] = [0; 6];
         let mut block: [u8; 7] = [0; 7];
         block[0] = reg | Self::DIR_READ;
         self.transfer_block(&mut block)?;
 
+        resp.copy_from_slice(&block[1..7]);
+
         Ok([
-            (block[0] as i16) << 8 | (block[1] as i16),
-            (block[2] as i16) << 8 | (block[3] as i16),
-            (block[4] as i16) << 8 | (block[5] as i16),
+            (resp[0] as i16) << 8 | (resp[1] as i16),
+            (resp[2] as i16) << 8 | (resp[3] as i16),
+            (resp[4] as i16) << 8 | (resp[5] as i16),
         ])
     }
 
     fn register_read(&mut self, reg: u8) -> Result<u8, Self::InterfaceError> {
         let mut cmd: [u8; 2] = [reg | Self::DIR_READ, 0];
-        self.transfer_block(&mut cmd)?;
+        self.csn.set_low().map_err(Error::Pin)?;
+        let rc = self.spi.transfer(&mut cmd);
+        let _ = self.csn.set_high();
+        rc.map_err(Error::Comm)?;
+
         Ok(cmd[1])
     }
 
     fn register_write(&mut self, reg: u8, val: u8) -> Result<(), Self::InterfaceError> {
-        let mut cmd: [u8; 2] = [reg, val];
-        self.transfer_block(&mut cmd)?;
-
+        self.csn.set_low().map_err(Error::Pin)?;
+        let rc = self.spi.write(&[reg, val]);
+        let _ = self.csn.set_high();
+        rc.map_err(Error::Comm)?;
         Ok(())
     }
 
