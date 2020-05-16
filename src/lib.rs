@@ -60,6 +60,9 @@ impl Builder {
 
 pub struct ICM20689<SI> {
     pub(crate) si: SI,
+
+    pub(crate) gyro_scale: f32,
+    pub(crate) accel_scale: f32,
 }
 
 impl<SI, CommE, PinE> ICM20689<SI>
@@ -69,6 +72,8 @@ where
     pub(crate) fn new_with_interface(sensor_interface: SI) -> Self {
         Self {
             si: sensor_interface,
+            gyro_scale: 0.0,
+            accel_scale: 0.0
         }
     }
 
@@ -191,20 +196,22 @@ where
         self.si.register_write(REG_USER_CTRL, ctrl_flags)?;
 
         //configure some default ranges
-        self.set_accel_scale(AccelRange::default())?;
-        self.set_gyro_scale(GyroRange::default())?;
+        self.set_accel_range(AccelRange::default())?;
+        self.set_gyro_range(GyroRange::default())?;
 
         Ok(())
     }
 
     /// Set the full scale range of the accelerometer
-    pub fn set_accel_scale(&mut self, scale: AccelRange) -> Result<(), SI::InterfaceError> {
-        self.si.register_write(REG_ACCEL_CONFIG, (scale as u8) << 3)
+    pub fn set_accel_range(&mut self, range: AccelRange) -> Result<(), SI::InterfaceError> {
+        self.accel_scale = range.scale();
+        self.si.register_write(REG_ACCEL_CONFIG, (range as u8) << 3)
     }
 
     /// Set the full scale range of the gyroscope
-    pub fn set_gyro_scale(&mut self, scale: GyroRange) -> Result<(), SI::InterfaceError> {
-        self.si.register_write(REG_GYRO_CONFIG, (scale as u8) << 2)
+    pub fn set_gyro_range(&mut self, range: GyroRange) -> Result<(), SI::InterfaceError> {
+        self.gyro_scale = range.scale();
+        self.si.register_write(REG_GYRO_CONFIG, (range as u8) << 2)
     }
 
     pub fn get_raw_accel(&mut self) -> Result<[i16; 3], SI::InterfaceError> {
@@ -214,6 +221,25 @@ where
     pub fn get_raw_gyro(&mut self) -> Result<[i16; 3], SI::InterfaceError> {
         self.si.read_vec3_i16(REG_GYRO_START)
     }
+
+    pub fn get_scaled_accel(&mut self) -> Result<[f32; 3], SI::InterfaceError> {
+        let raw_accel = self.get_raw_accel()?;
+        Ok([
+            self.accel_scale * (raw_accel[0] as f32),
+            self.accel_scale * (raw_accel[1] as f32),
+            self.accel_scale * (raw_accel[2] as f32),
+        ])
+    }
+
+    pub fn get_scaled_gyro(&mut self) -> Result<[f32; 3], SI::InterfaceError> {
+        let raw_gyro = self.get_raw_gyro()?;
+        Ok([
+            self.gyro_scale * (raw_gyro[0] as f32),
+            self.gyro_scale * (raw_gyro[1] as f32),
+            self.gyro_scale * (raw_gyro[2] as f32),
+        ])
+    }
+
 }
 
 /// Common registers
@@ -269,6 +295,28 @@ impl Default for GyroRange {
     }
 }
 
+
+impl GyroRange {
+    /// convert degrees into radians
+    const RADIANS_PER_DEGREE: f32 = core::f32::consts::PI / 180.0;
+
+    /// Gyro range in radians per second per bit
+    pub(crate) fn scale(&self) -> f32 {
+        Self::RADIANS_PER_DEGREE * self.resolution()
+    }
+
+    /// Gyro resolution in degrees per second per bit
+    /// Note that the ranges are ± which splits the raw i16 resolution between + and -
+    pub(crate) fn resolution(&self) -> f32 {
+        match self {
+            GyroRange::Range_250dps => 250.0 / 32768.0,
+            GyroRange::Range_500dps => 500.0 / 32768.0,
+            GyroRange::Range_1000dps => 1000.0 / 32768.0,
+            GyroRange::Range_2000dps => 2000.0 / 32768.0,
+        }
+    }
+}
+
 #[repr(u8)]
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Debug)]
@@ -290,5 +338,26 @@ pub enum AccelRange {
 impl Default for AccelRange {
     fn default() -> Self {
         AccelRange::Range_8g
+    }
+}
+
+impl AccelRange {
+    /// Earth gravitational acceleration (G) standard, in meters per second squared
+    const EARTH_GRAVITY_ACCEL: f32 = 9.807;
+
+    /// accelerometer scale in meters per second squared per bit
+    pub(crate) fn scale(&self) -> f32 {
+        Self::EARTH_GRAVITY_ACCEL * self.resolution()
+    }
+
+    /// Accelerometer resolution in G / bit
+    /// Note that the ranges are ± which splits the raw i16 resolution between + and -
+    pub(crate) fn resolution(&self) -> f32 {
+        match self {
+            Self::Range_2g => 2.0 / 32768.0,
+            Self::Range_4g => 4.0 / 32768.0,
+            Self::Range_8g => 8.0 / 32768.0,
+            Self::Range_16g => 16.0 / 32768.0,
+        }
     }
 }
