@@ -1,6 +1,6 @@
 [package]
 name = "icm20689"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Todd Stellanova <tstellanova@users.noreply.github.com>"]
 edition = "2018"
 description = "ICM-20689 6DOF IMU driver for embedded hal"
@@ -15,13 +15,12 @@ keywords = [
     "embedded-hal-driver",
     "ICM-20689",
     "ICM20689",
-    "MPU9250",
+    "ICM20608",
+    "ICM20602",
     "IMU",
     "6DOF",
     "accelerometer",
     "gyroscope",
-    "Invensense",
-    "TDK"
 ]
 readme = "README.md"
 
