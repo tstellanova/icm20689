@@ -12,11 +12,13 @@ and a motion processor.
 ## Status
 
 - [x] Basic SPI support
-- [ ] Support for probe (check product identifier)
-- [ ] Read of gyro data
-- [ ] Read of accel data
-- [ ] Support for DMA with SPI
 - [ ] Basic I2C support
+- [x] Supported product identifier check
+- [x] Read of gyro data
+- [x] Read of accel data
+- [x] Support for ICM-20608G (tested)
+- [ ] Support for ICM-20602 (implemented but untested)
+- [ ] Support for DMA with SPI
 - [ ] Tests with mock embedded hal
 - [ ] Usage example with `cortex-m` hal
 - [ ] Doc comments

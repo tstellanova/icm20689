@@ -3,11 +3,12 @@ use hal::digital::v2::OutputPin;
 
 use super::SensorInterface;
 use crate::Error;
+#[cfg(feature = "rttdebug")]
+use panic_rtt_core::rprintln;
 
 /// This combines the SPI peripheral and
 /// associated control pins such as:
 /// - CSN : Chip Select (aka SS or Slave Select)
-/// - DRDY: Data Ready: Sensor uses this to indicate it had data available for read
 pub struct SpiInterface<SPI, CSN> {
     /// the SPI port to use when communicating
     spi: SPI,
@@ -22,7 +23,7 @@ where
     CSN: OutputPin<Error = PinE>,
 {
     /// Combined with register address for reading single byte register
-    const DIR_READ: u8 = 0x80;
+    const DIR_READ: u8 = 0x80; // same as 1<<7
 
     pub fn new(spi: SPI, csn: CSN) -> Self {
         let mut inst = Self { spi: spi, csn: csn };
@@ -31,15 +32,32 @@ where
         inst
     }
 
-    fn transfer_block(&mut self, block: &mut [u8]) -> Result<(), Error<CommE, PinE>> {
+    /// Release owned resources
+    pub fn release(self) -> (SPI, CSN) {
+        (self.spi, self.csn)
+    }
+
+    fn read_block(&mut self, reg: u8, buffer: &mut [u8]) -> Result<(), Error<CommE, PinE>> {
+        buffer[0] = reg | Self::DIR_READ;
         self.csn.set_low().map_err(Error::Pin)?;
-        let rc = self.spi.transfer(block);
-        let _ = self.csn.set_high();
+        let rc = self.spi.transfer(buffer);
+        self.csn.set_high().map_err(Error::Pin)?;
         rc.map_err(Error::Comm)?;
 
         Ok(())
     }
 
+    fn write_block(&mut self, block: &[u8]) -> Result<(), Error<CommE, PinE>> {
+        #[cfg(feature = "rttdebug")]
+        rprintln!("write {:x?} ", block);
+
+        self.csn.set_low().map_err(Error::Pin)?;
+        let rc = self.spi.write(block);
+        self.csn.set_high().map_err(Error::Pin)?;
+        rc.map_err(Error::Comm)?;
+
+        Ok(())
+    }
 }
 
 impl<SPI, CSN, CommE, PinE> SensorInterface for SpiInterface<SPI, CSN>
@@ -51,35 +69,29 @@ where
     type InterfaceError = Error<CommE, PinE>;
 
     fn read_vec3_i16(&mut self, reg: u8) -> Result<[i16; 3], Self::InterfaceError> {
-        let mut resp: [u8; 6] = [0; 6];
         let mut block: [u8; 7] = [0; 7];
-        block[0] = reg | Self::DIR_READ;
-        self.transfer_block(&mut block)?;
-
-        resp.copy_from_slice(&block[1..7]);
+        self.read_block(reg, &mut block)?;
 
         Ok([
-            (resp[0] as i16) << 8 | (resp[1] as i16),
-            (resp[2] as i16) << 8 | (resp[3] as i16),
-            (resp[4] as i16) << 8 | (resp[5] as i16),
+            (block[1] as i16) << 8 | (block[2] as i16),
+            (block[3] as i16) << 8 | (block[4] as i16),
+            (block[5] as i16) << 8 | (block[6] as i16),
         ])
     }
 
     fn register_read(&mut self, reg: u8) -> Result<u8, Self::InterfaceError> {
-        let mut cmd: [u8; 2] = [reg | Self::DIR_READ, 0];
-        self.csn.set_low().map_err(Error::Pin)?;
-        let rc = self.spi.transfer(&mut cmd);
-        let _ = self.csn.set_high();
-        rc.map_err(Error::Comm)?;
+        let mut block: [u8; 2] = [0; 2];
+        self.read_block(reg, &mut block)?;
 
-        Ok(cmd[1])
+        #[cfg(feature = "rttdebug")]
+        rprintln!("read reg 0x{:x} {:x?} ", reg, block[1]);
+
+        Ok(block[1])
     }
 
     fn register_write(&mut self, reg: u8, val: u8) -> Result<(), Self::InterfaceError> {
-        self.csn.set_low().map_err(Error::Pin)?;
-        let rc = self.spi.write(&[reg, val]);
-        let _ = self.csn.set_high();
-        rc.map_err(Error::Comm)?;
+        let block: [u8; 2] = [reg, val];
+        self.write_block(&block)?;
         Ok(())
     }
 
