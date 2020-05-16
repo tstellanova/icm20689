@@ -13,14 +13,10 @@ categories = [
 ]
 keywords = [
     "embedded-hal-driver",
-    "ICM-20689",
     "ICM20689",
     "ICM20608",
-    "ICM20602",
     "IMU",
     "6DOF",
-    "accelerometer",
-    "gyroscope",
 ]
 readme = "README.md"
 
