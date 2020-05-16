@@ -8,6 +8,9 @@ TDK InvenSense
 The ICM-20689 is a 6-axis motion tracking device 
 that combines a 3-axis gyroscope, 3-axis accelerometer, 
 and a motion processor.
+This driver supports some similar 6dof devices in the same family, such as:
+- ICM-20602
+- ICM-20608G
 
 ## Status
 
