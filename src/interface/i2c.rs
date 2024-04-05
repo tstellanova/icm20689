@@ -12,9 +12,7 @@ pub struct I2cInterface<I2C> {
 
 impl<I2C, CommE> I2cInterface<I2C>
 where
-    I2C: hal::blocking::i2c::Read<Error = CommE>
-        + hal::blocking::i2c::Write<Error = CommE>
-        + hal::blocking::i2c::WriteRead<Error = CommE>,
+    I2C: hal::i2c::I2c<Error = CommE>,
 {
     pub fn new(i2c: I2C, address: u8) -> Self {
         Self {
@@ -26,9 +24,7 @@ where
 
 impl<I2C, CommE> SensorInterface for I2cInterface<I2C>
 where
-    I2C: hal::blocking::i2c::Read<Error = CommE>
-        + hal::blocking::i2c::Write<Error = CommE>
-        + hal::blocking::i2c::WriteRead<Error = CommE>,
+    I2C: hal::i2c::I2c<Error = CommE>,
 {
     type InterfaceError = Error<CommE, ()>;
 

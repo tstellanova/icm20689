@@ -1,5 +1,5 @@
 use embedded_hal as hal;
-use hal::digital::v2::OutputPin;
+use hal::digital::OutputPin;
 
 use super::SensorInterface;
 use crate::Error;
@@ -18,8 +18,7 @@ pub struct SpiInterface<SPI, CSN> {
 
 impl<SPI, CSN, CommE, PinE> SpiInterface<SPI, CSN>
 where
-    SPI: hal::blocking::spi::Write<u8, Error = CommE>
-        + hal::blocking::spi::Transfer<u8, Error = CommE>,
+    SPI: hal::spi::SpiDevice<u8, Error = CommE>,
     CSN: OutputPin<Error = PinE>,
 {
     /// Combined with register address for reading single byte register
@@ -40,7 +39,7 @@ where
     fn read_block(&mut self, reg: u8, buffer: &mut [u8]) -> Result<(), Error<CommE, PinE>> {
         buffer[0] = reg | Self::DIR_READ;
         self.csn.set_low().map_err(Error::Pin)?;
-        let rc = self.spi.transfer(buffer);
+        let rc = self.spi.read(buffer);
         self.csn.set_high().map_err(Error::Pin)?;
         rc.map_err(Error::Comm)?;
 
@@ -62,8 +61,7 @@ where
 
 impl<SPI, CSN, CommE, PinE> SensorInterface for SpiInterface<SPI, CSN>
 where
-    SPI: hal::blocking::spi::Write<u8, Error = CommE>
-        + hal::blocking::spi::Transfer<u8, Error = CommE>,
+    SPI: hal::spi::SpiDevice<u8, Error = CommE>,
     CSN: OutputPin<Error = PinE>,
 {
     type InterfaceError = Error<CommE, PinE>;
