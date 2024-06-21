@@ -1,0 +1,1 @@
+window.ALL_CRATES = ["embedded_hal","icm20689","void"];
