@@ -70,7 +70,7 @@ where
         Self {
             si: sensor_interface,
             gyro_scale: 0.0,
-            accel_scale: 0.0
+            accel_scale: 0.0,
         }
     }
 
@@ -236,7 +236,6 @@ where
             self.gyro_scale * (raw_gyro[2] as f32),
         ])
     }
-
 }
 
 /// Common registers
@@ -268,7 +267,7 @@ const ICM20689_WAI: u8 = 0x98;
 
 #[repr(u8)]
 #[allow(non_camel_case_types)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 /// The gyroscope has a programmable full-scale range of ±250, ±500, ±1000, or ±2000 degrees/sec.
 pub enum GyroRange {
     /// ±250
@@ -278,6 +277,7 @@ pub enum GyroRange {
     /// ±1000
     Range_1000dps = 0b10,
     /// ±2000
+    #[default]
     Range_2000dps = 0b11,
 }
 
@@ -285,13 +285,6 @@ pub enum GyroRange {
 // 01= ±500dps
 // 10 = ±1000dps
 // 11 = ±2000dps
-
-impl Default for GyroRange {
-    fn default() -> Self {
-        GyroRange::Range_2000dps
-    }
-}
-
 
 impl GyroRange {
     /// convert degrees into radians
@@ -316,7 +309,7 @@ impl GyroRange {
 
 #[repr(u8)]
 #[allow(non_camel_case_types)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 /// The accelerometer has a user-programmable accelerometer full-scale range
 /// of ±2g, ±4g, ±8g, and ±16g.
 /// (g is gravitational acceleration: 9.82 m/s^2)
@@ -327,15 +320,10 @@ pub enum AccelRange {
     /// ±4g
     Range_4g = 0b01,
     /// ±8g
+    #[default]
     Range_8g = 0b10,
     /// ±16g
     Range_16g = 0b11,
-}
-
-impl Default for AccelRange {
-    fn default() -> Self {
-        AccelRange::Range_8g
-    }
 }
 
 impl AccelRange {

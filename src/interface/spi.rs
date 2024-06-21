@@ -25,7 +25,7 @@ where
     const DIR_READ: u8 = 0x80; // same as 1<<7
 
     pub fn new(spi: SPI, csn: CSN) -> Self {
-        let mut inst = Self { spi: spi, csn: csn };
+        let mut inst = Self { spi, csn };
         //ensure that the device is initially deselected
         let _ = inst.csn.set_high();
         inst
