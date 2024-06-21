@@ -6,8 +6,8 @@ LICENSE: BSD3 (see LICENSE file)
 #![no_std]
 
 use embedded_hal as hal;
-use hal::blocking::delay::DelayMs;
-use hal::digital::v2::OutputPin;
+use hal::delay::DelayNs;
+use hal::digital::OutputPin;
 
 #[cfg(feature = "rttdebug")]
 use panic_rtt_core::rprintln;
@@ -35,9 +35,7 @@ impl Builder {
     /// Create a new driver using I2C interface
     pub fn new_i2c<I2C, CommE>(&self, i2c: I2C, address: u8) -> ICM20689<I2cInterface<I2C>>
     where
-        I2C: hal::blocking::i2c::Write<Error = CommE>
-            + hal::blocking::i2c::Read<Error = CommE>
-            + hal::blocking::i2c::WriteRead<Error = CommE>,
+        I2C: hal::i2c::I2c<Error = CommE>,
         CommE: core::fmt::Debug,
     {
         let iface = interface::I2cInterface::new(i2c, address);
@@ -47,8 +45,7 @@ impl Builder {
     /// Create a new driver using SPI interface
     pub fn new_spi<SPI, CSN, CommE, PinE>(spi: SPI, csn: CSN) -> ICM20689<SpiInterface<SPI, CSN>>
     where
-        SPI: hal::blocking::spi::Transfer<u8, Error = CommE>
-            + hal::blocking::spi::Write<u8, Error = CommE>,
+        SPI: hal::spi::SpiDevice<u8, Error = CommE>,
         CSN: OutputPin<Error = PinE>,
         CommE: core::fmt::Debug,
         PinE: core::fmt::Debug,
@@ -80,7 +77,7 @@ where
     /// Read the sensor identifier and return true if they match a supported value
     pub fn check_identity(
         &mut self,
-        delay_source: &mut impl DelayMs<u8>,
+        delay_source: &mut impl DelayNs,
     ) -> Result<bool, SI::InterfaceError> {
         for _ in 0..5 {
             let chip_id = self.si.register_read(REG_WHO_AM_I)?;
@@ -105,7 +102,7 @@ where
     /// Perform a soft reset on the sensor
     pub fn soft_reset(
         &mut self,
-        delay_source: &mut impl DelayMs<u8>,
+        delay_source: &mut impl DelayNs,
     ) -> Result<(), SI::InterfaceError> {
         /// disable I2C interface if we're using SPI
         const I2C_IF_DIS: u8 = 1 << 4;
@@ -164,7 +161,7 @@ where
     }
 
     /// give the sensor interface a chance to set up
-    pub fn setup(&mut self, delay_source: &mut impl DelayMs<u8>) -> Result<(), SI::InterfaceError> {
+    pub fn setup(&mut self, delay_source: &mut impl DelayNs) -> Result<(), SI::InterfaceError> {
         // const DLPF_CFG_1: u8 = 0x01;
         //const SIG_COND_RST: u8 = 1 << 0;
         const FIFO_RST: u8 = 1 << 2;
